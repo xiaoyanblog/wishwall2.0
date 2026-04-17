@@ -6,6 +6,14 @@
 /admin.html
 ```
 
+输入正确的 `ADMIN_TOKEN` 后，会自动跳转到：
+
+```text
+/admin-dashboard.html
+```
+
+如果口令错误，页面会停留在 `/admin.html`，不会展示留言列表、统计卡片或管理表单。
+
 ## 部署前配置
 
 在 Vercel 项目的环境变量里新增：

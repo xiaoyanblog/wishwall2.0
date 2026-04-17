@@ -44,6 +44,12 @@ button {
   padding: 34px 0 56px;
 }
 
+.gate-shell {
+  min-height: 100vh;
+  display: grid;
+  align-content: center;
+}
+
 .hero-panel,
 .login-panel,
 .toolbar,
@@ -145,6 +151,10 @@ h1 {
   padding: 24px;
 }
 
+.gate-panel {
+  align-items: center;
+}
+
 .login-panel h2,
 .empty-state h2 {
   margin-bottom: 8px;
@@ -155,6 +165,17 @@ h1 {
   margin-bottom: 0;
   color: var(--muted);
   line-height: 1.7;
+}
+
+.login-error {
+  display: none;
+  margin-top: 10px;
+  color: var(--danger) !important;
+  font-weight: 800;
+}
+
+.login-error.show {
+  display: block;
 }
 
 .login-form {

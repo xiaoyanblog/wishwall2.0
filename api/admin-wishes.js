@@ -19,6 +19,10 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === "GET") {
+    if (req.query.verify === "true") {
+      return res.status(200).json({ ok: true });
+    }
+
     return listWishes(req, res);
   }
 
