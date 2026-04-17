@@ -137,8 +137,7 @@
     visibility.textContent = wish.approved ? "公开显示" : "已隐藏";
     visibility.classList.toggle("hidden", !wish.approved);
 
-    const ipText = wish.ipRecorded && wish.ipHash ? ` / IP ${wish.ipHash.slice(0, 10)}` : "";
-    card.querySelector("time").textContent = `${formatDate(wish.createdAt)}${ipText}`;
+    card.querySelector("time").textContent = formatDate(wish.createdAt);
     card.querySelector(".content-input").value = wish.content || "";
     card.querySelector(".nickname-input").value = wish.nickname || "匿名";
     card.querySelector(".type-input").value = wish.type || "love";
@@ -154,6 +153,7 @@
     toggleButton.addEventListener("click", () => updateWish(wish.id, { approved: !wish.approved }));
 
     card.querySelector(".save-btn").addEventListener("click", () => saveCard(card, wish.id));
+    card.querySelector(".detail-btn").addEventListener("click", () => showWishDetail(wish));
     card.querySelector(".delete-btn").addEventListener("click", () => deleteWish(wish.id));
   }
 
@@ -207,6 +207,19 @@
       console.error(error);
       toast(error.message || "删除失败");
     }
+  }
+
+  function showWishDetail(wish) {
+    const lines = [
+      `留言 ID：${wish.id}`,
+      `昵称：${wish.nickname || "匿名"}`,
+      `分类：${typeLabels[wish.type] || wish.type}`,
+      `状态：${statusLabels[wish.status] || "无"}`,
+      `发布时间：${formatDate(wish.createdAt)}`,
+      `IP：${wish.ipRecorded && wish.ipAddress ? wish.ipAddress : "未记录"}`
+    ];
+
+    window.alert(lines.join("\n"));
   }
 
   async function loadSecuritySettings() {

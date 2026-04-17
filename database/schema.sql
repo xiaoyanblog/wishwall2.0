@@ -15,12 +15,14 @@ create table if not exists public.wishes (
   position_rotate double precision,
   z_index integer not null default 200,
   approved boolean not null default true,
+  ip_address text not null default '',
   ip_hash text not null default '',
   ip_recorded boolean not null default false,
   created_at timestamptz not null default now()
 );
 
 alter table public.wishes
+  add column if not exists ip_address text not null default '',
   add column if not exists ip_hash text not null default '',
   add column if not exists ip_recorded boolean not null default false;
 
@@ -66,12 +68,22 @@ create policy "No public direct access"
 
 create table if not exists public.wish_submission_logs (
   id uuid primary key default gen_random_uuid(),
-  ip_hash text not null,
+  ip_address text not null default '',
+  ip_hash text not null default '',
   created_at timestamptz not null default now()
 );
 
+alter table public.wish_submission_logs
+  add column if not exists ip_address text not null default '';
+
+alter table public.wish_submission_logs
+  alter column ip_hash set default '';
+
 create index if not exists wish_submission_logs_ip_created_at_idx
   on public.wish_submission_logs (ip_hash, created_at desc);
+
+create index if not exists wish_submission_logs_ip_address_created_at_idx
+  on public.wish_submission_logs (ip_address, created_at desc);
 
 alter table public.wish_submission_logs enable row level security;
 

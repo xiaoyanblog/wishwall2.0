@@ -79,7 +79,7 @@
           <article class="setting-card">
             <div>
               <h2>记录 IP</h2>
-              <p>开启后，新留言会保存访问者 IP 的哈希值，不保存明文 IP。</p>
+              <p>开启后，新留言会保存访问者明文 IP，并可在留言详情里查看。</p>
             </div>
             <label class="switch-control">
               <input id="recordIp" type="checkbox">
@@ -91,7 +91,7 @@
           <article class="setting-card">
             <div>
               <h2>留言限制</h2>
-              <p>按 IP 哈希统计每日留言次数，适合防止刷屏。</p>
+              <p>按明文 IP 统计每日留言次数，适合防止刷屏。</p>
             </div>
             <div class="setting-fields">
               <label class="switch-control">
@@ -207,6 +207,7 @@
       <div class="card-actions">
         <button class="toggle-approve-btn" type="button"></button>
         <button class="save-btn" type="button">保存修改</button>
+        <button class="detail-btn" type="button">详细</button>
         <button class="delete-btn" type="button">删除</button>
       </div>
     </article>

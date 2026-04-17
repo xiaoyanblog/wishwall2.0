@@ -11,7 +11,7 @@
 - Supabase 存储留言，Vercel Serverless API 读写数据。
 - 独立后台入口，输入正确 `ADMIN_TOKEN` 后进入管理页。
 - 后台支持公开/隐藏、编辑内容、修改状态、添加达成备注、图片 URL 和 AI 回复。
-- 安全管理支持 IP 哈希记录、每日留言限制和验证码验证 API 配置。
+- 安全管理支持明文 IP 记录、每日留言限制和验证码验证 API 配置。
 
 ## 文件结构
 
@@ -44,7 +44,6 @@
 SUPABASE_URL=你的 Supabase Project URL
 SUPABASE_SERVICE_ROLE_KEY=你的 service_role key 或 secret key
 ADMIN_TOKEN=你的后台管理口令
-IP_HASH_SALT=用于生成 IP 哈希的随机盐，建议填写
 ```
 
 5. 部署或重新部署 Vercel。
@@ -57,7 +56,7 @@ IP_HASH_SALT=用于生成 IP 哈希的随机盐，建议填写
 - 后台入口：`/admin.html`，也可以点击展示页右上角的钥匙图标进入。
 - 后台管理页：登录成功后自动跳转到 `/admin-dashboard.html`。
 - 口令错误时会停留在登录入口，不展示留言数据和管理表单。
-- 安全管理：可开启记录 IP、每日留言限制、验证码校验。IP 只保存哈希值，不保存明文。
+- 安全管理：可开启记录明文 IP、每日留言限制、验证码校验。开启记录后，可在留言管理的“详细”里查看 IP。
 
 ## API
 

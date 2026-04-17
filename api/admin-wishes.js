@@ -75,7 +75,7 @@ async function listWishRows(limit) {
 
   try {
     return await supabaseRequest(
-      `/rest/v1/wishes?select=${baseSelect},ip_hash,ip_recorded&order=created_at.desc&limit=${limit}`
+      `/rest/v1/wishes?select=${baseSelect},ip_address,ip_recorded&order=created_at.desc&limit=${limit}`
     );
   } catch (error) {
     if (!String(error.message || "").includes("ip_")) {
@@ -227,7 +227,7 @@ function fromDatabaseRow(row) {
     doneImage: cleanUrl(row.done_image, 500),
     aiReply: cleanText(row.ai_reply, 500),
     approved: Boolean(row.approved),
-    ipHash: row.ip_recorded ? row.ip_hash || "" : "",
+    ipAddress: row.ip_recorded ? cleanIp(row.ip_address) : "",
     ipRecorded: Boolean(row.ip_recorded),
     position,
     z: normalizeNumber(row.z_index, 200),
@@ -302,6 +302,14 @@ function normalizePosition(row) {
 function normalizeNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function cleanIp(value) {
+  return String(value || "")
+    .replace(/[^0-9a-fA-F:.,\s-]/g, "")
+    .split(",")[0]
+    .trim()
+    .slice(0, 64);
 }
 
 function safeTokenEqual(provided, expected) {

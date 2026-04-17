@@ -1,5 +1,3 @@
-const crypto = require("crypto");
-
 const ALLOWED_TYPES = new Set(["love", "wish", "feedback"]);
 const ALLOWED_COLORS = new Set(["green", "yellow", "purple", "pink", "blue", "orange"]);
 const ALLOWED_STATUS = new Set(["", "doing", "done"]);
@@ -50,8 +48,7 @@ async function submitWish(req, res) {
   try {
     const body = await readJson(req);
     const settings = await loadSecuritySettings();
-    const ip = getClientKey(req);
-    const ipHash = hashIp(ip);
+    const ip = cleanIp(getClientKey(req));
     const content = cleanText(body.content, 200);
     const nickname = cleanText(body.nickname || "匿名", 20) || "匿名";
     const type = ALLOWED_TYPES.has(body.type) ? body.type : "love";
@@ -63,7 +60,7 @@ async function submitWish(req, res) {
     }
 
     if (settings.dailyLimitEnabled) {
-      const used = await countTodaySubmissions(ipHash).catch((error) => {
+      const used = await countTodaySubmissions(ip).catch((error) => {
         console.error(error);
         return 0;
       });
@@ -95,18 +92,14 @@ async function submitWish(req, res) {
     };
 
     if (settings.recordIp) {
-      wishPayload.ip_hash = ipHash;
+      wishPayload.ip_address = ip;
       wishPayload.ip_recorded = true;
     }
 
-    await supabaseRequest("/rest/v1/wishes", {
-      method: "POST",
-      headers: { Prefer: "return=minimal" },
-      body: JSON.stringify(wishPayload)
-    });
+    await insertWish(wishPayload);
 
     if (settings.recordIp || settings.dailyLimitEnabled) {
-      await recordSubmission(ipHash).catch((error) => {
+      await recordSubmission(ip).catch((error) => {
         console.error(error);
       });
     }
@@ -149,6 +142,27 @@ async function supabaseRequest(path, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+async function insertWish(payload) {
+  try {
+    return await supabaseRequest("/rest/v1/wishes", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify(payload)
+    });
+  } catch (error) {
+    if (!payload.ip_address || !String(error.message || "").includes("ip_")) {
+      throw error;
+    }
+
+    const { ip_address, ip_recorded, ...fallbackPayload } = payload;
+    return supabaseRequest("/rest/v1/wishes", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify(fallbackPayload)
+    });
+  }
+}
+
 async function loadSecuritySettings() {
   try {
     const rows = await supabaseRequest("/rest/v1/security_settings?id=eq.1&select=record_ip,daily_limit_enabled,daily_limit_count,captcha_enabled,captcha_secret,captcha_verify_url&limit=1");
@@ -183,20 +197,37 @@ function defaultSecuritySettings() {
   };
 }
 
-async function countTodaySubmissions(ipHash) {
+async function countTodaySubmissions(ipAddress) {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
-  const path = `/rest/v1/wish_submission_logs?ip_hash=eq.${encodeURIComponent(ipHash)}&created_at=gte.${encodeURIComponent(today.toISOString())}&select=id&limit=1000`;
+  const path = `/rest/v1/wish_submission_logs?ip_address=eq.${encodeURIComponent(ipAddress)}&created_at=gte.${encodeURIComponent(today.toISOString())}&select=id&limit=1000`;
   const rows = await supabaseRequest(path);
   return Array.isArray(rows) ? rows.length : 0;
 }
 
-async function recordSubmission(ipHash) {
-  await supabaseRequest("/rest/v1/wish_submission_logs", {
-    method: "POST",
-    headers: { Prefer: "return=minimal" },
-    body: JSON.stringify({ ip_hash: ipHash })
-  });
+async function recordSubmission(ipAddress) {
+  const payload = {
+    ip_address: ipAddress,
+    ip_hash: ""
+  };
+
+  try {
+    await supabaseRequest("/rest/v1/wish_submission_logs", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify(payload)
+    });
+  } catch (error) {
+    if (!String(error.message || "").includes("ip_address")) {
+      throw error;
+    }
+
+    await supabaseRequest("/rest/v1/wish_submission_logs", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ ip_hash: payload.ip_hash })
+    });
+  }
 }
 
 async function verifyCaptcha({ token, settings, ip }) {
@@ -286,9 +317,12 @@ function normalizeNumber(value, fallback) {
   return Number.isFinite(number) ? number : fallback;
 }
 
-function hashIp(ip) {
-  const salt = process.env.IP_HASH_SALT || process.env.ADMIN_TOKEN || process.env.SUPABASE_SERVICE_ROLE_KEY || "wish-wall";
-  return crypto.createHash("sha256").update(`${salt}:${ip}`).digest("hex");
+function cleanIp(value) {
+  return String(value || "")
+    .replace(/[^0-9a-fA-F:.,\s-]/g, "")
+    .split(",")[0]
+    .trim()
+    .slice(0, 64) || "unknown";
 }
 
 function rateLimit(bucket, key, maxAttempts, windowMs) {
