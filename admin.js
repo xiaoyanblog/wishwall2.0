@@ -32,10 +32,10 @@
 
     try {
       await requestJson(`${apiUrl}?verify=true`, token);
-      localStorage.setItem(tokenKey, token);
+      sessionStorage.setItem(tokenKey, token);
       window.location.href = dashboardUrl;
     } catch (error) {
-      localStorage.removeItem(tokenKey);
+      sessionStorage.removeItem(tokenKey);
       showError(error.message || "管理口令不正确");
       toast("口令错误，未进入后台");
     } finally {

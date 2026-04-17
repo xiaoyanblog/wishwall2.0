@@ -32,7 +32,7 @@
   function bindToolbar() {
     document.getElementById("refreshBtn").addEventListener("click", loadWishes);
     document.getElementById("logoutBtn").addEventListener("click", () => {
-      localStorage.removeItem(tokenKey);
+      sessionStorage.removeItem(tokenKey);
       redirectToLogin();
     });
     document.getElementById("searchInput").addEventListener("input", renderWishes);
@@ -50,7 +50,7 @@
       console.error(error);
 
       if (error.status === 401) {
-        localStorage.removeItem(tokenKey);
+        sessionStorage.removeItem(tokenKey);
         redirectToLogin();
         return;
       }
@@ -212,7 +212,7 @@
   }
 
   function getToken() {
-    return localStorage.getItem(tokenKey) || "";
+    return sessionStorage.getItem(tokenKey) || "";
   }
 
   function formatDate(dateText) {

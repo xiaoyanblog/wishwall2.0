@@ -1,6 +1,7 @@
 const ALLOWED_TYPES = new Set(["love", "wish", "feedback"]);
 const ALLOWED_COLORS = new Set(["green", "yellow", "purple", "pink", "blue", "orange"]);
 const ALLOWED_STATUS = new Set(["", "doing", "done"]);
+const submitAttempts = new Map();
 
 module.exports = async function handler(req, res) {
   setJsonHeaders(res);
@@ -14,6 +15,14 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === "POST") {
+    if (!rateLimit(submitAttempts, getClientKey(req), 8, 60 * 1000)) {
+      return res.status(429).json({ error: "提交太频繁了，请稍后再试" });
+    }
+
+    if (!isJsonRequest(req)) {
+      return res.status(415).json({ error: "Content-Type must be application/json" });
+    }
+
     return submitWish(req, res);
   }
 
@@ -160,6 +169,37 @@ function normalizePosition(row) {
 function normalizeNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function rateLimit(bucket, key, maxAttempts, windowMs) {
+  const now = Date.now();
+  const entry = bucket.get(key) || { count: 0, resetAt: now + windowMs };
+
+  if (entry.resetAt <= now) {
+    entry.count = 0;
+    entry.resetAt = now + windowMs;
+  }
+
+  entry.count += 1;
+  bucket.set(key, entry);
+
+  for (const [itemKey, item] of bucket) {
+    if (item.resetAt <= now) {
+      bucket.delete(itemKey);
+    }
+  }
+
+  return entry.count <= maxAttempts;
+}
+
+function getClientKey(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return forwarded || req.socket?.remoteAddress || "unknown";
+}
+
+function isJsonRequest(req) {
+  const contentType = String(req.headers["content-type"] || "").toLowerCase();
+  return contentType.includes("application/json");
 }
 
 function readJson(req) {

@@ -1,6 +1,9 @@
+const crypto = require("crypto");
+
 const ALLOWED_TYPES = new Set(["love", "wish", "feedback"]);
 const ALLOWED_COLORS = new Set(["green", "yellow", "purple", "pink", "blue", "orange"]);
 const ALLOWED_STATUS = new Set(["", "doing", "done"]);
+const authFailures = new Map();
 
 module.exports = async function handler(req, res) {
   setJsonHeaders(res);
@@ -11,6 +14,10 @@ module.exports = async function handler(req, res) {
 
   try {
     if (!isAuthorized(req)) {
+      if (!rateLimit(authFailures, getClientKey(req), 12, 5 * 60 * 1000)) {
+        return res.status(429).json({ error: "尝试太频繁了，请稍后再试" });
+      }
+
       return res.status(401).json({ error: "管理口令不正确" });
     }
   } catch (error) {
@@ -27,10 +34,22 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === "PATCH") {
+    if (!isTrustedOrigin(req)) {
+      return res.status(403).json({ error: "Forbidden origin" });
+    }
+
+    if (!isJsonRequest(req)) {
+      return res.status(415).json({ error: "Content-Type must be application/json" });
+    }
+
     return updateWish(req, res);
   }
 
   if (req.method === "DELETE") {
+    if (!isTrustedOrigin(req)) {
+      return res.status(403).json({ error: "Forbidden origin" });
+    }
+
     return deleteWish(req, res);
   }
 
@@ -208,7 +227,7 @@ function isAuthorized(req) {
   const auth = req.headers.authorization || "";
   const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   const headerToken = req.headers["x-admin-token"] || "";
-  return bearer === token || headerToken === token;
+  return safeTokenEqual(bearer, token) || safeTokenEqual(headerToken, token);
 }
 
 function cleanId(value) {
@@ -265,6 +284,59 @@ function normalizePosition(row) {
 function normalizeNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function safeTokenEqual(provided, expected) {
+  const providedHash = crypto.createHash("sha256").update(String(provided || "")).digest();
+  const expectedHash = crypto.createHash("sha256").update(String(expected || "")).digest();
+  return crypto.timingSafeEqual(providedHash, expectedHash);
+}
+
+function rateLimit(bucket, key, maxAttempts, windowMs) {
+  const now = Date.now();
+  const entry = bucket.get(key) || { count: 0, resetAt: now + windowMs };
+
+  if (entry.resetAt <= now) {
+    entry.count = 0;
+    entry.resetAt = now + windowMs;
+  }
+
+  entry.count += 1;
+  bucket.set(key, entry);
+
+  for (const [itemKey, item] of bucket) {
+    if (item.resetAt <= now) {
+      bucket.delete(itemKey);
+    }
+  }
+
+  return entry.count <= maxAttempts;
+}
+
+function getClientKey(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return forwarded || req.socket?.remoteAddress || "unknown";
+}
+
+function isJsonRequest(req) {
+  const contentType = String(req.headers["content-type"] || "").toLowerCase();
+  return contentType.includes("application/json");
+}
+
+function isTrustedOrigin(req) {
+  const origin = req.headers.origin;
+
+  if (!origin) {
+    return true;
+  }
+
+  try {
+    const originHost = new URL(origin).host;
+    const requestHost = String(req.headers["x-forwarded-host"] || req.headers.host || "");
+    return originHost === requestHost;
+  } catch (error) {
+    return false;
+  }
 }
 
 function readJson(req) {
